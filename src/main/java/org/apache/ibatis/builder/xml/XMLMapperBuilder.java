@@ -91,14 +91,21 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   public void parse() {
+    //判断当前 Mapper 是否已经加载过
     if (!configuration.isResourceLoaded(resource)) {
+      //解析 mapper 节点
       configurationElement(parser.evalNode("/mapper"));
+      //标记该 Mapper已经加载过
       configuration.addLoadedResource(resource);
+      //绑定 Mapper
       bindMapperForNamespace();
     }
 
+    //解析待定的 resultMap 节点
     parsePendingResultMaps();
+    //解析待定的 cache-ref 节点
     parsePendingCacheRefs();
+    //解析待定的SQL语句节点
     parsePendingStatements();
   }
 
