@@ -91,32 +91,59 @@ public class XMLConfigBuilder extends BaseBuilder {
     this.parser = parser;
   }
 
+  /**
+   * 解析XML成COnfiguration对象
+   * @return
+   */
   public Configuration parse() {
+    //若已解析，抛出BuilderException异常
     if (parsed) {
       throw new BuilderException("Each XMLConfigBuilder can only be used once.");
     }
+    //标记已解析
     parsed = true;
+    //parser是XpathParser解析器对象，读取节点数据，<configuration>是mybatis配置文件中的顶层标签
+    //解析XML configuration
     parseConfiguration(parser.evalNode("/configuration"));
     return configuration;
   }
 
+  /**
+   * 解析XML
+   * 具体 Mybatis有哪些 XML 标签，
+   * @param root
+   */
   private void parseConfiguration(XNode root) {
     try {
-      // issue #117 read properties first
+      // 解析 properties 标签
       propertiesElement(root.evalNode("properties"));
+      //解析 settings 标签
       Properties settings = settingsAsProperties(root.evalNode("settings"));
+      //加载自定义的VFS实现类
       loadCustomVfs(settings);
+      //加载自定义日志实现
       loadCustomLogImpl(settings);
+      //解析 typeAliases 标签
       typeAliasesElement(root.evalNode("typeAliases"));
+      //解析 plugins 标签
       pluginElement(root.evalNode("plugins"));
+      //解析 objectFactory 标签
       objectFactoryElement(root.evalNode("objectFactory"));
+      //解析 objectWrapperFactory 标签
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
+      //解析 reflectorFactory 标签
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
+      //赋值 <settings /> ⾄ Configuration 属性
       settingsElement(settings);
+
       // read it after objectFactory and objectWrapperFactory issue #631
+      //解析 environments 标签
       environmentsElement(root.evalNode("environments"));
+      //解析 databaseIdProvider 标签
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
+      //解析 typeHandlers 标签
       typeHandlerElement(root.evalNode("typeHandlers"));
+      //解析 mappers 标签
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
@@ -219,19 +246,33 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 1.解析 <properties/>标签，成Properties对象
+   * 2.覆盖 configuration 中的 Properties对象到上面结果
+   * 3.设置结果到 parser和configuration中
+   * @param context 节点
+   * @throws Exception
+   */
   private void propertiesElement(XNode context) throws Exception {
     if (context != null) {
+      //读取子标签们，为Properties对象
       Properties defaults = context.getChildrenAsProperties();
+      //读取resource和url属性
       String resource = context.getStringAttribute("resource");
       String url = context.getStringAttribute("url");
+      //resource 和 url 都不存在的情况下，就抛出BuilderException异常
       if (resource != null && url != null) {
         throw new BuilderException("The properties element cannot specify both a URL and a resource based property file reference.  Please specify one or the other.");
       }
+
       if (resource != null) {
+        //读取本地Properties配置文件到defaults中
         defaults.putAll(Resources.getResourceAsProperties(resource));
       } else if (url != null) {
+        //读取远程 Properties配置文件到 defaults中
         defaults.putAll(Resources.getUrlAsProperties(url));
       }
+      //覆盖configuration中的Properties对象到defaults中。
       Properties vars = configuration.getVariables();
       if (vars != null) {
         defaults.putAll(vars);
@@ -363,20 +404,30 @@ public class XMLConfigBuilder extends BaseBuilder {
 
   private void mapperElement(XNode parent) throws Exception {
     if (parent != null) {
+      //遍历节点
       for (XNode child : parent.getChildren()) {
+        //如果是package 标签，则扫描该包
         if ("package".equals(child.getName())) {
+          //获得包名
           String mapperPackage = child.getStringAttribute("name");
+          //添加到 configuration中
           configuration.addMappers(mapperPackage);
-        } else {
+        } else { //如果是 mapper 标签
+          //获得 resource.url.class属性
           String resource = child.getStringAttribute("resource");
           String url = child.getStringAttribute("url");
           String mapperClass = child.getStringAttribute("class");
+          //使用相对于类路径的资源引用
           if (resource != null && url == null && mapperClass == null) {
             ErrorContext.instance().resource(resource);
+            //获得 resource 的InputStream对象
             try(InputStream inputStream = Resources.getResourceAsStream(resource)) {
+              //获得 XMLMapperBuilder对象
               XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
+              //执行解析
               mapperParser.parse();
             }
+            //使用完全限定资源定位符（URL)
           } else if (resource == null && url != null && mapperClass == null) {
             ErrorContext.instance().resource(url);
             try(InputStream inputStream = Resources.getUrlAsStream(url)){

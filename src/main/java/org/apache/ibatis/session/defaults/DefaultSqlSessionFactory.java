@@ -44,6 +44,7 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
 
   @Override
   public SqlSession openSession() {
+    //getDefaultExecutorType 传递的是SimpleExecutor
     return openSessionFromDataSource(configuration.getDefaultExecutorType(), null, false);
   }
 
@@ -87,15 +88,27 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
     return configuration;
   }
 
+  /**
+   *
+   * @param execType 为Executor的类型
+   * @param level 为事务隔离级别
+   * @param autoCommit 是否开启事务
+   * @return
+   */
   private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
     Transaction tx = null;
     try {
+      //获取 Environment对象
       final Environment environment = configuration.getEnvironment();
+      //创建Transaction对象
       final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
       tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
+      //创建Executor对象
       final Executor executor = configuration.newExecutor(tx, execType);
+      //创建 DefaultSqlSession 对象
       return new DefaultSqlSession(configuration, executor, autoCommit);
     } catch (Exception e) {
+      //发生异常关闭 Transaction
       closeTransaction(tx); // may have fetched a connection so lets call close()
       throw ExceptionFactory.wrapException("Error opening session.  Cause: " + e, e);
     } finally {
