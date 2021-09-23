@@ -85,6 +85,7 @@ public class CachingExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
     BoundSql boundSql = ms.getBoundSql(parameterObject);
+    //创建Cachekey
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
@@ -92,15 +93,24 @@ public class CachingExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
       throws SQLException {
+    //从MappedStatement中获取Cache，注意这里的Cache是从MappedStatement中获取的
+    //也就是我们上面解析Mapper中<cache/>标签中创建的，它保存在Configration中
+    //我们在上面解析blog.xml时分析过每一个MappedStatement都有一个Cache对象，就是这里
     Cache cache = ms.getCache();
+    //如果配置文件中没有配置<cache>,则cache为空
     if (cache != null) {
+      //如果需要刷新缓存的话就刷新：flushCache=true
       flushCacheIfRequired(ms);
       if (ms.isUseCache() && resultHandler == null) {
         ensureNoOutParams(ms, boundSql);
         @SuppressWarnings("unchecked")
+          //访问二级缓存
         List<E> list = (List<E>) tcm.getObject(cache, key);
+        //缓存未命中
         if (list == null) {
+          //如果没有值，则执行查询，这个查询实际也是先走一级缓存查询，一级缓存也没有的话，则进行DB查询
           list = delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+          //缓存查询结果
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
         return list;
@@ -162,7 +172,9 @@ public class CachingExecutor implements Executor {
   }
 
   private void flushCacheIfRequired(MappedStatement ms) {
+    //获取MappedStatement对应的Cache，进行清空
     Cache cache = ms.getCache();
+    //SQL需设置flushCache="true" 才会执行清空
     if (cache != null && ms.isFlushCacheRequired()) {
       tcm.clear(cache);
     }

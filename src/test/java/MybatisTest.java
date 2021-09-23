@@ -45,6 +45,8 @@ public class MybatisTest {
 
     //3.生产了DefaultSqlsession实例对象  设置了事务不自动提交   完成了 executor对象的创建
     SqlSession sqlSession = sqlSessionFactory.openSession();
+    sqlSession.commit();
+
 
     //JDK 动态代理对mapper接口产生代理对象
     IUserMapper mapper = sqlSession.getMapper(IUserMapper.class);
